@@ -5,15 +5,22 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
+
 namespace SimplifiedDriver
 {
     class Program
     {
         static void Main(string[] args)
         {
-            string text = null;
+            OnCommandAsync();
+            Console.Read();
+        }
+
+        static async private void OnCommandAsync() // Waiting for a command in the console
+        {
+            string text = null; // input data variable
             Console.Write("Command: ");
-            bool flag = false;
+            bool flag = false; // false - until the packet stream sequence ends with an 'E' (69).
             try
             {
                 while (flag == false)
@@ -24,7 +31,7 @@ namespace SimplifiedDriver
                     {
                         text = text.Remove(text.Length - 1);
                         Console.Clear();
-                        Console.Write($"Text: {text}");
+                        Console.Write($"Command: {text}");
                     }
 
                     if (code >= 32 && code <= 127) // Allowed range of ASCII input characters
@@ -39,56 +46,74 @@ namespace SimplifiedDriver
                     }
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine(e.Message);
             }
-           
-            
+
+            await Task.Run(()=> SelectCommand(text)); // Passing command to function
+        }
+
+        static private void SelectCommand(string text) // Command validation and selection
+        {
             try
             {
-                //string text = "PS:1,0,255:E";
-                string defineFunction = @"(P\S:\S*:E$)";
-                string command = null;
+                string defineFunction = @"(P[A-Z]:[ -~]*:E$)"; // command check condition
+                string command = null; // variable for command package
                 Match match = Regex.Match(text, defineFunction);
                 if (match.Success)
                 {
-                    Console.WriteLine(match.Groups[1].Value);
-                    command = match.Groups[1].Value;
+                    command = match.Groups[1].Value; // Get command package
+                    char key = command[1]; // Get command character
+                    switch (key)
+                    {
+                        case 'T':           // Command "Text" - Text Output
+                            Text(command);
+                            break;
+                        case 'S':           // Command "Sound"
+                            Sound(command);
+                            break;
+                        default:
+                            Console.WriteLine("\nCommand not found");
+                            break;
+                    }
                 }
-                char key = command[1];
-                switch (key)
-                {
-                    case 'T':           // Command "Text" - Text Output
-                        Match argument = Regex.Match(command, @":(\w*):");
-                        if (argument.Success)
-                        {
-                            Commands.Text(argument.Groups[1].Value);
-                        }
-                        else
-                            Console.WriteLine("The \"Text\" command argument is invalid");
-                        break;
-                    case 'S':
-                        Console.WriteLine("Command 'S'");
-                        Match arguments = Regex.Match(command, @":(\d*),(\d*):");
-                        if (arguments.Success)
-                        {
-                            int a = Convert.ToInt32(arguments.Groups[1].Value);
-                            int b = Convert.ToInt32(arguments.Groups[2].Value);
-                            Console.WriteLine($"Argumet: {a}, {b}");
-                        }
-                        Console.WriteLine("Не верный формат аргументов");
-                        break;
-                    default:
-                        Console.WriteLine("Совпадений не найдено");
-                        break;
-
-                }
+                else
+                    Console.WriteLine("\nCommand not found");
+               
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine(e.Message);
-            } 
+            }
+        }
+
+        static private void Text(string command) // Command "Text" - Text Output
+        {
+            Console.Clear();
+            Match argument = Regex.Match(command, @":([ -~]*):"); // checking the validity of a command parameter
+            if (argument.Success)
+            {
+                Console.WriteLine(argument.Groups[1].Value);
+            }
+            else
+                Console.WriteLine("The \"Text\" invalid payload");
+            
+        }
+
+        static private void Sound(string command) // Command "Sound"
+        {
+            Console.Clear();
+            Match arguments = Regex.Match(command, @":(\d*),(\d*):"); // checking the validity of a command parameter
+            if (arguments.Success)
+            {
+                int freq = Convert.ToInt32(arguments.Groups[1].Value);
+                int duration = Convert.ToInt32(arguments.Groups[2].Value);
+                Console.Beep(freq, duration);
+            }
+            else
+                Console.WriteLine("The \"Sound\" invalid payload");
+            
         }
     }
 }
